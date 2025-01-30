@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic } from "lucide-react";
+import { Mic, Plus, Play, Pause } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function PersonalAssistance() {
   const [isRecording, setIsRecording] = useState(false);
@@ -10,10 +11,14 @@ export default function PersonalAssistance() {
   const [audioUrls, setAudioUrls] = useState({});
   const [transcript, setTranscript] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [sessions, setSessions] = useState([{ id: 1, messages: [] }]);
+  const [currentSessionId, setCurrentSessionId] = useState(1);
+  const [selectedSession, setSelectedSession] = useState(1);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recognitionRef = useRef(null);
   const audioRef = useRef(new Audio());
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -80,6 +85,37 @@ export default function PersonalAssistance() {
     setIsRecording(!isRecording);
   };
 
+  const createNewChat = () => {
+    const newSessionId = sessions.length + 1;
+    setSessions((prev) => [...prev, { id: newSessionId, messages: [] }]);
+    setCurrentSessionId(newSessionId);
+    setSelectedSession(newSessionId);
+  };
+
+  const handleSessionClick = (sessionId) => {
+    setSelectedSession(sessionId);
+    setCurrentSessionId(sessionId);
+  };
+
+  const handlePlayPause = (audioUrl) => {
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.src = audioUrl;
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  useEffect(() => {
+    audioRef.current.onended = () => setIsPlaying(false);
+  }, []);
+
+  const currentSession = sessions.find(
+    (session) => session.id === selectedSession
+  );
+
   return (
     <div className="flex h-full">
       <div className="flex-1 flex flex-col p-4 bg-gray-950">
@@ -104,14 +140,93 @@ export default function PersonalAssistance() {
             </div>
           </div>
         </div>
-        <Button onClick={() => setShowPreview(true)}>Preview</Button>
+        <div className="relative">
+          <Button onClick={() => setShowPreview(!showPreview)}>
+            {showPreview ? "Close" : "Preview"}
+          </Button>
+          <AnimatePresence>
+            {showPreview && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-full mb-2 w-full bg-gray-800 p-4 rounded-lg shadow-lg"
+              >
+                <div>
+                  <h3 className="font-bold mb-2">Chat Summary</h3>
+                  <p>
+                    {currentSession?.messages
+                      .map((msg) => msg.content)
+                      .join(", ")}
+                  </p>
+                </div>
+                {currentSession?.messages.some((msg) => msg.audioUrl) && (
+                  <div className="mt-4">
+                    <h3 className="font-bold mb-2">User Audio</h3>
+                    {currentSession.messages
+                      .filter((msg) => msg.audioUrl)
+                      .map((msg, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Button
+                            onClick={() => handlePlayPause(msg.audioUrl)}
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-blue-700"
+                          >
+                            {isPlaying ? (
+                              <Pause size={16} />
+                            ) : (
+                              <Play size={16} />
+                            )}
+                          </Button>
+                          <span>{msg.content}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+                {currentSession?.messages.some((msg) => msg.audioUrl) && (
+                  <div className="mt-4">
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      Clone Your Voice
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
       <div className="w-1/4 border-r p-4 bg-gray-900">
         {/* Chat History */}
-        <h2 className="text-lg font-bold mb-2 text-white">Chat History</h2>
-        {chatHistory.map((msg) => (
-          <div key={msg.id} className="bg-gray-800 p-2 rounded mb-2 text-white">
-            {msg.content}
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold text-white">Chat History</h2>
+          <Button
+            onClick={createNewChat}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus size={16} /> New Chat
+          </Button>
+        </div>
+        {sessions.map((session) => (
+          <div
+            key={session.id}
+            className={`cursor-pointer mb-2 p-3 rounded transition-colors ${
+              session.id === selectedSession
+                ? "bg-blue-700 hover:bg-blue-800"
+                : "bg-gray-800 hover:bg-gray-700"
+            }`}
+            onClick={() => handleSessionClick(session.id)}
+          >
+            <div className="font-medium">
+              {session.messages.length > 0
+                ? session.messages[0].content
+                : `New Chat ${session.id}`}
+            </div>
+            {session.messages.length > 0 && (
+              <div className="text-xs text-gray-400 mt-1">
+                {new Date(session.messages[0].timestamp).toLocaleDateString()}
+              </div>
+            )}
           </div>
         ))}
       </div>
