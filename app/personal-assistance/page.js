@@ -1,21 +1,19 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Mic, Play, Pause, X, Phone, PhoneOff, Volume2, Wand2 } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Mic } from "lucide-react";
 
 export default function PersonalAssistance() {
-  const [isRecording, setIsRecording] = useState(false)
-  const [chatHistory, setChatHistory] = useState([])
-  const [audioUrls, setAudioUrls] = useState({})
-  const [transcript, setTranscript] = useState("")
-  const [showPreview, setShowPreview] = useState(false)
-  const [callStatus, setCallStatus] = useState("idle")
-  const mediaRecorderRef = useRef(null)
-  const audioChunksRef = useRef([])
-  const recognitionRef = useRef(null)
-  const audioRef = useRef(new Audio())
+  const [isRecording, setIsRecording] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [audioUrls, setAudioUrls] = useState({});
+  const [transcript, setTranscript] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recognitionRef = useRef(null);
+  const audioRef = useRef(new Audio());
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -23,104 +21,100 @@ export default function PersonalAssistance() {
         navigator.mediaDevices
           .getUserMedia({ audio: true })
           .then((stream) => {
-            mediaRecorderRef.current = new MediaRecorder(stream)
+            mediaRecorderRef.current = new MediaRecorder(stream);
             mediaRecorderRef.current.ondataavailable = (event) => {
-              audioChunksRef.current.push(event.data)
-            }
+              audioChunksRef.current.push(event.data);
+            };
             mediaRecorderRef.current.onstop = () => {
-              const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" })
-              const audioUrl = URL.createObjectURL(audioBlob)
-              const messageId = Date.now().toString()
-              setAudioUrls((prev) => ({ ...prev, [messageId]: audioUrl }))
-              setChatHistory((prev) => [...prev, { id: messageId, type: "user", content: `🎤 ${transcript}` }])
-              handleSend(transcript, audioBlob)
-            }
+              const audioBlob = new Blob(audioChunksRef.current, {
+                type: "audio/wav",
+              });
+              const audioUrl = URL.createObjectURL(audioBlob);
+              const messageId = Date.now().toString();
+              setAudioUrls((prev) => ({ ...prev, [messageId]: audioUrl }));
+              setChatHistory((prev) => [
+                ...prev,
+                { id: messageId, type: "user", content: `🎤 ${transcript}` },
+              ]);
+              handleSend(transcript, audioBlob);
+            };
           })
-          .catch((error) => console.error("Error accessing microphone. Please check permissions.", error))
+          .catch((error) =>
+            console.error(
+              "Error accessing microphone. Please check permissions.",
+              error
+            )
+          );
       }
       if ("webkitSpeechRecognition" in window) {
-        recognitionRef.current = new window.webkitSpeechRecognition()
-        recognitionRef.current.continuous = true
-        recognitionRef.current.interimResults = true
+        recognitionRef.current = new window.webkitSpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
         recognitionRef.current.onresult = (event) => {
-          let interimTranscript = ""
-          let finalTranscript = ""
+          let interimTranscript = "";
+          let finalTranscript = "";
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript
+              finalTranscript += event.results[i][0].transcript;
             } else {
-              interimTranscript += event.results[i][0].transcript
+              interimTranscript += event.results[i][0].transcript;
             }
           }
-          setTranscript(finalTranscript || interimTranscript)
-        }
+          setTranscript(finalTranscript || interimTranscript);
+        };
       }
     }
-  }, [transcript])
+  }, [transcript]);
 
   const toggleRecording = () => {
-    if (!mediaRecorderRef.current || !recognitionRef.current) return
+    if (!mediaRecorderRef.current || !recognitionRef.current) return;
     if (isRecording) {
-      mediaRecorderRef.current.stop()
-      recognitionRef.current.stop()
+      mediaRecorderRef.current.stop();
+      recognitionRef.current.stop();
     } else {
-      audioChunksRef.current = []
-      setTranscript("")
-      mediaRecorderRef.current.start()
-      recognitionRef.current.start()
+      audioChunksRef.current = [];
+      setTranscript("");
+      mediaRecorderRef.current.start();
+      recognitionRef.current.start();
     }
-    setIsRecording(!isRecording)
-  }
+    setIsRecording(!isRecording);
+  };
 
   return (
     <div className="flex h-full">
-      <div className="w-1/4 border-r p-4 bg-gray-900"> {/* Chat History */}
-        <h2 className="text-lg font-bold mb-2 text-white">Chat History</h2>
-        {chatHistory.map((msg) => (
-          <div key={msg.id} className="bg-gray-800 p-2 rounded mb-2 text-white">{msg.content}</div>
-        ))}
-      </div>
-
-      <div className="flex-1 flex flex-col p-4 bg-gray-950"> {/* Chat Section */}
-        <div className="flex-1 border rounded-lg p-4 mb-4 flex justify-between items-center">
-          <input
-            type="text"
-            className="flex-1 p-2 bg-gray-800 text-white rounded-lg"
-            placeholder="Type a message..."
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-          />
-          <div className="flex items-center gap-2">
-            <Button onClick={toggleRecording} variant={isRecording ? "destructive" : "default"}>
-              <Mic className={isRecording ? "animate-pulse" : ""} />
-            </Button>
-            <Button onClick={() => alert("Message sent!")}>Send</Button>
+      <div className="flex-1 flex flex-col p-4 bg-gray-950">
+        {/* Chat Section */}
+        <div className="flex-1 border rounded-lg p-4 mb-4 flex flex-col justify-end">
+          <div className="flex justify-between items-center">
+            <input
+              type="text"
+              className="flex-1 p-2 bg-gray-800 text-white rounded-lg"
+              placeholder="Type a message..."
+              value={transcript}
+              onChange={(e) => setTranscript(e.target.value)}
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={toggleRecording}
+                variant={isRecording ? "destructive" : "default"}
+              >
+                <Mic className={isRecording ? "animate-pulse" : ""} />
+              </Button>
+              <Button onClick={() => alert("Message sent!")}>Send</Button>
+            </div>
           </div>
         </div>
         <Button onClick={() => setShowPreview(true)}>Preview</Button>
       </div>
-
-      <div className="w-1/4 border-l p-4 bg-gray-900 relative"> {/* Call Interface */}
-        <h2 className="text-lg font-bold mb-2 text-white">Call Interface</h2>
-        {callStatus === "calling" ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 p-6 rounded-lg shadow-lg"
-          >
-            <Phone className="text-green-400 animate-ping" size={48} />
-            <p className="mt-2 text-white">Calling...</p>
-            <Button onClick={() => setCallStatus("idle")} variant="destructive" className="mt-4">
-              <PhoneOff /> End Call
-            </Button>
-          </motion.div>
-        ) : (
-          <Button onClick={() => setCallStatus("calling")}>
-            <Phone /> Start Call
-          </Button>
-        )}
+      <div className="w-1/4 border-r p-4 bg-gray-900">
+        {/* Chat History */}
+        <h2 className="text-lg font-bold mb-2 text-white">Chat History</h2>
+        {chatHistory.map((msg) => (
+          <div key={msg.id} className="bg-gray-800 p-2 rounded mb-2 text-white">
+            {msg.content}
+          </div>
+        ))}
       </div>
     </div>
-  )
+  );
 }
