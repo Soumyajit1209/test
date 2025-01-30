@@ -2,13 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}
 
 :root {
   --background: 0 0% 0%;
   --foreground: 0 0% 100%;
   --primary: 240 100% 50%;
   --primary-foreground: 0 0% 100%;
-}v
+}
 
 body {
   background-color: hsl(var(--background));
