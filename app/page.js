@@ -4,18 +4,21 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Mic, Send, Play, Pause, Plus } from "lucide-react"
+import { Mic, Send, Play, Pause, Plus, DoorOpen } from "lucide-react"
 import { useSpeechSynthesis } from 'react-speech-kit'
 
 export default function Home() {
   const [isVoicePriority, setIsVoicePriority] = useState(false)
   const [message, setMessage] = useState("")
   const [isRecording, setIsRecording] = useState(false)
-  const [sessions, setSessions] = useState([{ id: 1, messages: [] }])
+  const [sessions, setSessions] = useState([{ id: 1, messages: [], conversationId: null }])
   const [currentSessionId, setCurrentSessionId] = useState(1)
   const [selectedSession, setSelectedSession] = useState(1)
   const [audioBlob, setAudioBlob] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [conversationData, setConversationData] = useState(null)
+  const [showPreview, setShowPreview] = useState(false)
+
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
@@ -23,9 +26,9 @@ export default function Home() {
   const textareaRef = useRef(null)
   const { speak, cancel, speaking } = useSpeechSynthesis()
 
+  // Speech recognition and media recorder setup
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Speech recognition setup
       if ("webkitSpeechRecognition" in window) {
         const SpeechRecognition = window.webkitSpeechRecognition
         recognitionRef.current = new SpeechRecognition()
@@ -40,11 +43,10 @@ export default function Home() {
         }
       }
 
-      // Media recorder setup
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
           mediaRecorderRef.current = new MediaRecorder(stream)
-          
+
           mediaRecorderRef.current.ondataavailable = (event) => {
             audioChunksRef.current.push(event.data)
           }
@@ -57,9 +59,8 @@ export default function Home() {
         })
         .catch(err => console.error("Error accessing microphone:", err))
 
-      // Cleanup
       return () => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        if (mediaRecorderRef.current?.state === 'recording') {
           mediaRecorderRef.current.stop()
         }
         if (recognitionRef.current) {
@@ -69,9 +70,24 @@ export default function Home() {
     }
   }, [])
 
+  const togglePreview = async () => {
+    if (!showPreview) {
+      try {
+        const response = await fetch("https://api.globaltfn.tech/conversation/20250201221618", {
+          headers: { accept: "application/json" },
+        });
+        const data = await response.json();
+        setConversationData(data);
+      } catch (error) {
+        console.error("Error fetching preview data:", error);
+      }
+    }
+    setShowPreview(!showPreview);
+  };
+
   const createNewChat = () => {
     const newSessionId = sessions.length + 1
-    setSessions(prev => [...prev, { id: newSessionId, messages: [] }])
+    setSessions(prev => [...prev, { id: newSessionId, messages: [], conversationId: null }])
     setCurrentSessionId(newSessionId)
     setSelectedSession(newSessionId)
   }
@@ -90,14 +106,16 @@ export default function Home() {
 
   const handleSend = async () => {
     if ((message.trim() && !isVoicePriority) || (isVoicePriority && audioBlob)) {
+      const currentSession = sessions.find(session => session.id === currentSessionId)
       const audioUrl = isVoicePriority ? URL.createObjectURL(audioBlob) : null
 
+      // Add user message to UI
       setSessions(prev => prev.map(session => {
         if (session.id === currentSessionId) {
           return {
             ...session,
-            messages: [...session.messages, { 
-              type: "user", 
+            messages: [...session.messages, {
+              type: "user",
               content: isVoicePriority ? "🎤 Voice message" : message,
               audioUrl: audioUrl,
               timestamp: new Date().toISOString()
@@ -108,20 +126,27 @@ export default function Home() {
       }))
 
       try {
-        const response = await fetch("/api/chat", {
+        // Use appropriate endpoint based on conversation state
+        const endpoint = currentSession.conversationId
+          ? `https://api.globaltfn.tech/continue_conversation/${currentSession.conversationId}`
+          : "https://api.globaltfn.tech/start_conversation"
+
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: message }),
         })
         const data = await response.json()
-        
+
+        // Update session with response and conversation ID
         setSessions(prev => prev.map(session => {
           if (session.id === currentSessionId) {
             return {
               ...session,
-              messages: [...session.messages, { 
-                type: "azmth", 
-                content: data.response,
+              conversationId: data.conversation_id || session.conversationId,
+              messages: [...session.messages, {
+                type: "azmth",
+                content: data.question || data.response,
                 timestamp: new Date().toISOString()
               }]
             }
@@ -130,7 +155,7 @@ export default function Home() {
         }))
 
         if (isVoicePriority) {
-          speak({ text: data.response })
+          speak({ text: data.question || data.response })
         }
       } catch (error) {
         console.error("Error sending message:", error)
@@ -138,8 +163,8 @@ export default function Home() {
           if (session.id === currentSessionId) {
             return {
               ...session,
-              messages: [...session.messages, { 
-                type: "azmth", 
+              messages: [...session.messages, {
+                type: "azmth",
                 content: "Error processing your request.",
                 timestamp: new Date().toISOString()
               }]
@@ -181,7 +206,6 @@ export default function Home() {
     }
   }
 
-  // Handle audio ended
   useEffect(() => {
     audioRef.current.onended = () => setIsPlaying(false)
   }, [])
@@ -190,7 +214,7 @@ export default function Home() {
     <div className="flex h-full p-4 bg-gray-900 text-white">
       <div className="flex flex-col flex-1">
         <div className="flex items-center justify-between mb-4 pr-4">
-          <Button 
+          <Button
             onClick={createNewChat}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
           >
@@ -208,13 +232,12 @@ export default function Home() {
               .find(session => session.id === selectedSession)
               ?.messages.map((msg, index) => (
                 <div key={index} className={`mb-4 ${msg.type === "user" ? "text-right" : "text-left"}`}>
-                  <div className={`inline-block p-3 rounded-lg ${
-                    msg.type === "user" ? "bg-blue-600" : "bg-gray-700"
-                  }`}>
+                  <div className={`inline-block p-3 rounded-lg ${msg.type === "user" ? "bg-blue-600" : "bg-gray-700"
+                    }`}>
                     <div className="flex items-center gap-2">
                       {msg.content}
                       {msg.audioUrl && (
-                        <Button 
+                        <Button
                           onClick={() => handlePlayPause(msg.audioUrl)}
                           variant="ghost"
                           size="sm"
@@ -229,7 +252,7 @@ export default function Home() {
                     </div>
                   </div>
                   {msg.type === "azmth" && isVoicePriority && (
-                    <Button 
+                    <Button
                       onClick={() => handlePlayResponse(msg.content)}
                       variant="ghost"
                       size="sm"
@@ -262,37 +285,40 @@ export default function Home() {
             </div>
           )}
           {isVoicePriority && (
-            <Button 
-              onClick={toggleRecording} 
+            <Button
+              onClick={toggleRecording}
               variant={isRecording ? "destructive" : "default"}
               className={`${isRecording ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"}`}
             >
               <Mic className={isRecording ? "animate-pulse" : ""} />
             </Button>
           )}
-          <Button 
+          <Button
             onClick={handleSend}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Send />
+          </Button>
+          <Button onClick={togglePreview} className="bg-blue-600 hover:bg-blue-700">
+            <Book />
           </Button>
         </div>
       </div>
       <div className="w-1/4 border-l border-gray-700 pl-4">
         <h2 className="text-lg font-bold mb-2">Chat History</h2>
         {sessions.map((session) => (
+          // biome-ignore lint/a11y/useKeyWithClickEvents: <explanation>
           <div
             key={session.id}
-            className={`cursor-pointer mb-2 p-3 rounded transition-colors ${
-              session.id === selectedSession 
-                ? 'bg-blue-700 hover:bg-blue-800' 
-                : 'bg-gray-800 hover:bg-gray-700'
-            }`}
+            className={`cursor-pointer mb-2 p-3 rounded transition-colors ${session.id === selectedSession
+              ? 'bg-blue-700 hover:bg-blue-800'
+              : 'bg-gray-800 hover:bg-gray-700'
+              }`}
             onClick={() => handleSessionClick(session.id)}
           >
             <div className="font-medium">
-              {session.messages.length > 0 
-                ? session.messages[0].content 
+              {session.messages.length > 0
+                ? session.messages[0].content
                 : `New Chat ${session.id}`}
             </div>
             {session.messages.length > 0 && (
@@ -303,6 +329,20 @@ export default function Home() {
           </div>
         ))}
       </div>
+      {showPreview && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className=" p-4 rounded shadow-lg max-w-sm">
+            <h2 className="text-xl font-bold mb-4">Preview</h2>
+            <p>{conversationData}</p>
+            <button
+              onClick={() => setShowPreview(false)}
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

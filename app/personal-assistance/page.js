@@ -27,6 +27,8 @@ export default function PersonalAssistance() {
   const audioRef = useRef(new Audio());
   const textareaRef = useRef(null);
   const { speak, cancel, speaking } = useSpeechSynthesis();
+  const [conversationId, setConversationId] = useState("20250201221415");
+  const [questionText, setQuestionText] = useState("What specific data storage and synchronization protocols will you implement to ensure seamless integration of AZMTH's extracted todos and notes with your existing task management and note-taking applications?");
 
   useEffect(() => {
     audioRef.current.onended = () => setIsPlaying(false);
@@ -110,7 +112,16 @@ export default function PersonalAssistance() {
     setCurrentSessionId(sessionId);
   };
 
-  const togglePreview = () => {
+  const togglePreview = async () => {
+    if (!showPreview) {
+      try {
+        await fetch("https://api.globaltfn.tech/conversation/20250201221618", {
+          headers: { accept: "application/json" },
+        });
+      } catch (error) {
+        console.error("Error fetching preview data:", error);
+      }
+    }
     setShowPreview(!showPreview);
   };
 
@@ -125,23 +136,26 @@ export default function PersonalAssistance() {
         prev.map((session) =>
           session.id === currentSessionId
             ? {
-                ...session,
-                messages: [
-                  ...session.messages,
-                  {
-                    type: "user",
-                    content: isVoicePriority ? "🎤 Voice message" : message,
-                    audioUrl: audioUrl,
-                    timestamp: new Date().toISOString(),
-                  },
-                ],
-              }
+              ...session,
+              messages: [
+                ...session.messages,
+                {
+                  type: "user",
+                  content: isVoicePriority ? "🎤 Voice message" : message,
+                  audioUrl: audioUrl,
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            }
             : session
         )
       );
 
       try {
-        const response = await fetch("/api/chat/route", {
+        const endpoint = conversationId
+          ? `https://api.globaltfn.tech/continue_conversation/${conversationId}`
+          : "https://api.globaltfn.tech/start_conversation";
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: message }),
@@ -153,16 +167,16 @@ export default function PersonalAssistance() {
           prev.map((session) =>
             session.id === currentSessionId
               ? {
-                  ...session,
-                  messages: [
-                    ...session.messages,
-                    {
-                      type: "azmth",
-                      content: data.response,
-                      timestamp: new Date().toISOString(),
-                    },
-                  ],
-                }
+                ...session,
+                messages: [
+                  ...session.messages,
+                  {
+                    type: "azmth",
+                    content: data.response,
+                    timestamp: new Date().toISOString(),
+                  },
+                ],
+              }
               : session
           )
         );
@@ -176,16 +190,16 @@ export default function PersonalAssistance() {
           prev.map((session) =>
             session.id === currentSessionId
               ? {
-                  ...session,
-                  messages: [
-                    ...session.messages,
-                    {
-                      type: "azmth",
-                      content: "Error processing your request.",
-                      timestamp: new Date().toISOString(),
-                    },
-                  ],
-                }
+                ...session,
+                messages: [
+                  ...session.messages,
+                  {
+                    type: "azmth",
+                    content: "Error processing your request.",
+                    timestamp: new Date().toISOString(),
+                  },
+                ],
+              }
               : session
           )
         );
@@ -248,11 +262,10 @@ export default function PersonalAssistance() {
             <Button
               onClick={handleVoiceInput}
               variant={isRecording ? "destructive" : "default"}
-              className={`${
-                isRecording
+              className={`${isRecording
                   ? "bg-red-600 hover:bg-red-700"
                   : "bg-blue-600 hover:bg-blue-700"
-              }`}
+                }`}
             >
               <Mic className={isRecording ? "animate-pulse" : ""} />
             </Button>
@@ -283,14 +296,12 @@ export default function PersonalAssistance() {
                     ?.messages.map((msg, index) => (
                       <div
                         key={index}
-                        className={`mb-4 ${
-                          msg.type === "user" ? "text-right" : "text-left"
-                        }`}
+                        className={`mb-4 ${msg.type === "user" ? "text-right" : "text-left"
+                          }`}
                       >
                         <div
-                          className={`inline-block p-3 rounded-lg ${
-                            msg.type === "user" ? "bg-blue-600" : "bg-gray-700"
-                          }`}
+                          className={`inline-block p-3 rounded-lg ${msg.type === "user" ? "bg-blue-600" : "bg-gray-700"
+                            }`}
                         >
                           <div className="flex items-center gap-2">
                             {msg.content}
@@ -356,11 +367,10 @@ export default function PersonalAssistance() {
                   <Button
                     onClick={toggleRecording}
                     variant={isRecording ? "destructive" : "default"}
-                    className={`${
-                      isRecording
+                    className={`${isRecording
                         ? "bg-red-600 hover:bg-red-700"
                         : "bg-blue-600 hover:bg-blue-700"
-                    }`}
+                      }`}
                   >
                     <Mic className={isRecording ? "animate-pulse" : ""} />
                   </Button>
@@ -372,6 +382,12 @@ export default function PersonalAssistance() {
                   <Send />
                 </Button>
               </div>
+              {isVoicePriority && (
+                <div className="mb-4 p-3 bg-gray-800 rounded-lg text-white">
+                  <h3 className="text-lg font-bold mb-2">Incoming Question</h3>
+                  <p>{questionText}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -455,11 +471,10 @@ export default function PersonalAssistance() {
         {sessions.map((session) => (
           <div
             key={session.id}
-            className={`cursor-pointer mb-2 p-3 rounded transition-colors ${
-              session.id === selectedSession
+            className={`cursor-pointer mb-2 p-3 rounded transition-colors ${session.id === selectedSession
                 ? "bg-blue-700 hover:bg-blue-800"
                 : "bg-gray-800 hover:bg-gray-700"
-            }`}
+              }`}
             onClick={() => handleSessionClick(session.id)}
           >
             <div className="font-medium">
