@@ -82,7 +82,7 @@ export default function PersonalAssistance() {
               </div>
             </div>
           )}
-
+  
           {/* Render Advance Mode */}
           {isVoicePriority && (
             <div className="flex-1 rounded-lg p-4 mb-4 flex flex-col justify-end">
