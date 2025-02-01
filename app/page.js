@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Mic, Send, Play, Pause, Plus, DoorOpen } from "lucide-react"
+import { Mic, Send, Play, Pause, Plus, Book } from "lucide-react"
 import { useSpeechSynthesis } from 'react-speech-kit'
 
 export default function Home() {
@@ -22,13 +22,15 @@ export default function Home() {
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
-  const audioRef = useRef(new Audio())
+  const audioRef = useRef(null);
   const textareaRef = useRef(null)
   const { speak, cancel, speaking } = useSpeechSynthesis()
 
   // Speech recognition and media recorder setup
   useEffect(() => {
     if (typeof window !== "undefined") {
+      audioRef.current = new Audio();
+      audioRef.current.onended = () => setIsPlaying(false);
       if ("webkitSpeechRecognition" in window) {
         const SpeechRecognition = window.webkitSpeechRecognition
         recognitionRef.current = new SpeechRecognition()

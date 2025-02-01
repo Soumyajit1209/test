@@ -24,13 +24,14 @@ export default function PersonalAssistance() {
   const recognitionRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
-  const audioRef = useRef(new Audio());
+  const audioRef = useRef(null);
   const textareaRef = useRef(null);
   const { speak, cancel, speaking } = useSpeechSynthesis();
   const [conversationId, setConversationId] = useState("20250201221415");
   const [questionText, setQuestionText] = useState("What specific data storage and synchronization protocols will you implement to ensure seamless integration of AZMTH's extracted todos and notes with your existing task management and note-taking applications?");
 
   useEffect(() => {
+    audioRef.current = new Audio();
     audioRef.current.onended = () => setIsPlaying(false);
   }, []);
 
@@ -263,8 +264,8 @@ export default function PersonalAssistance() {
               onClick={handleVoiceInput}
               variant={isRecording ? "destructive" : "default"}
               className={`${isRecording
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "bg-blue-600 hover:bg-blue-700"
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-blue-600 hover:bg-blue-700"
                 }`}
             >
               <Mic className={isRecording ? "animate-pulse" : ""} />
@@ -368,8 +369,8 @@ export default function PersonalAssistance() {
                     onClick={toggleRecording}
                     variant={isRecording ? "destructive" : "default"}
                     className={`${isRecording
-                        ? "bg-red-600 hover:bg-red-700"
-                        : "bg-blue-600 hover:bg-blue-700"
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-blue-600 hover:bg-blue-700"
                       }`}
                   >
                     <Mic className={isRecording ? "animate-pulse" : ""} />
@@ -472,8 +473,8 @@ export default function PersonalAssistance() {
           <div
             key={session.id}
             className={`cursor-pointer mb-2 p-3 rounded transition-colors ${session.id === selectedSession
-                ? "bg-blue-700 hover:bg-blue-800"
-                : "bg-gray-800 hover:bg-gray-700"
+              ? "bg-blue-700 hover:bg-blue-800"
+              : "bg-gray-800 hover:bg-gray-700"
               }`}
             onClick={() => handleSessionClick(session.id)}
           >
