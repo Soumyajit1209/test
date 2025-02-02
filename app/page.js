@@ -79,9 +79,9 @@ export default function Home() {
           headers: { accept: "application/json" },
         });
         const data = await response.json();
-        console.log(data.responses);
+        console.log(data);
 
-        setConversationData(data.responses);
+        setConversationData(data);
       } catch (error) {
         console.error("Error fetching preview data:", error);
       }
@@ -340,9 +340,7 @@ export default function Home() {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className=" p-4 rounded shadow-lg max-w-sm bg-black">
             <h2 className="text-xl font-bold mb-4">Preview</h2>
-            <p>{conversationData?.detail && typeof conversationData.detail === "object"
-              ? JSON.stringify(conversationData.detail)
-              : conversationData?.detail}</p>
+            <p>{conversationData}</p>
             <button
               onClick={() => setShowPreview(false)}
               className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
