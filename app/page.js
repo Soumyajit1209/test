@@ -16,16 +16,16 @@ export default function Home() {
   const [selectedSession, setSelectedSession] = useState(1)
   const [audioBlob, setAudioBlob] = useState(null)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [conversationData, setConversationData] = useState(null)
+  const [conversationData, setConversationData] = useState("")
   const [showPreview, setShowPreview] = useState(false)
-
+  const [conversationId, setConversationId] = useState(null);
   const recognitionRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const audioRef = useRef(null);
   const textareaRef = useRef(null)
   const { speak, cancel, speaking } = useSpeechSynthesis()
-
+  console.log("conversationId", conversationId);
   // Speech recognition and media recorder setup
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -75,11 +75,13 @@ export default function Home() {
   const togglePreview = async () => {
     if (!showPreview) {
       try {
-        const response = await fetch("https://api.globaltfn.tech/conversation/20250201221618", {
+        const response = await fetch(`https://api.globaltfn.tech/conversation/${conversationId}`, {
           headers: { accept: "application/json" },
         });
         const data = await response.json();
-        setConversationData(data);
+        console.log(data.responses);
+
+        setConversationData(data.responses);
       } catch (error) {
         console.error("Error fetching preview data:", error);
       }
@@ -139,8 +141,11 @@ export default function Home() {
           body: JSON.stringify({ message: message }),
         })
         const data = await response.json()
-
         // Update session with response and conversation ID
+        console.log(data);
+        if (data.conversation_id) {
+          setConversationId(data.conversation_id);
+        }
         setSessions(prev => prev.map(session => {
           if (session.id === currentSessionId) {
             return {
@@ -333,9 +338,11 @@ export default function Home() {
       </div>
       {showPreview && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className=" p-4 rounded shadow-lg max-w-sm">
+          <div className=" p-4 rounded shadow-lg max-w-sm bg-black">
             <h2 className="text-xl font-bold mb-4">Preview</h2>
-            <p>{conversationData}</p>
+            <p>{conversationData?.detail && typeof conversationData.detail === "object"
+              ? JSON.stringify(conversationData.detail)
+              : conversationData?.detail}</p>
             <button
               onClick={() => setShowPreview(false)}
               className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
